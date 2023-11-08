@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dice Game</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial, sans-serif;
+  }
+
+  #game-description {
+    text-align: left;
+    margin-bottom: 20px;
+    width: 80%;
+    float: left;
+  }
+
+  #upper-container {
+    text-align: center;
+    clear: both;
+  }
+
+  #history-container {
+    width: 200px;
+    border: 1px solid black;
+    margin: 10px;
+    padding: 10px;
+    display: none; /* 默认隐藏历史记录 */
+  }
+
+  #dice-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+  }
+
+  #betting-section {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+  }
+
+  button.selected {
+    background-color: yellow;
+  }
+
+  #result {
+    text-align: center;
+    font-size: 1.5em;
+    padding: 20px;
+    visibility: hidden; /* Initially hidden to prevent "Please Bet" message */
+  }
+
+  .dice-img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .rolling {
+    animation-name: rollDice;
+    animation-duration: 0.5s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+  }
+
+  @keyframes rollDice {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .win {
+    color: green;
+  }
+
+  .lose {
+    color: red;
+  }
+
+  .divider {
+    width: 100%;
+    height: 2px;
+    background-color: black;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+<div id="game-description">
+  <p>
+    Below is a dice game that costs $2 to play, featuring three dice. A roll of 11 or more is 'Big', otherwise it's 'Small'. You can bet on 'Big' or 'Small', then click 'Roll' to start. If you bet correctly, you win $4; if not, you get nothing. Before starting, you must choose one of two options: 'View History' to see the last ten rolls, or 'Place Twice' to play an additional round. Suppose you only have $2, how would you play? Once ready, you can begin.
+  </p>
+</div>
+<div id="upper-container">
+  <div id="control-buttons-container">
+    <button id="view-history">View History</button>
+    <button id="play-again">Place Twice</button>
+  </div>
+  <div id="dice-container">
+    <img src="dice1.png" class="dice-img" id="dice-img1">
+    <img src="dice1.png" class="dice-img" id="dice-img2">
+    <img src="dice1.png" class="dice-img" id="dice-img3">
+  </div>
+  <div id="history-container">
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- History records will be inserted here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="divider"></div>
+<div id="betting-section">
+  <div id="prompt-bet">Please Bet</div>
+  <button id="bet-big">Big</button>
+  <button id="bet-small">Small</button>
+  <div id="prompt-roll">Please Click</div>
+  <button id="roll">Roll</button>
+  <div id="result"></div>
+</div>
+<button id="download-result" style="position: fixed; bottom: 10px; right: 10px;">Download Results</button>
+
+<script>
+  let playerBet = null;
+  let realHistory = [];
+  let csvContent = "data:text/csv;charset=utf-8,\uFEFFNumber,Results\n"; // Use English for CSV header and add BOM for UTF-8
+
+  function generateRandomHistory() {
+    let randomHistory = [];
+    for (let i = 1; i <= 10; i++) {
+      randomHistory.push({
+        round: i,
+        result: Math.random() < 0.5 ? 'Big' : 'Small'
+      });
+    }
+    return randomHistory;
+  }
+
+  function showHistory(historyArray) {
+    let historyTableBody = document.getElementById('history-table').querySelector('tbody');
+    historyTableBody.innerHTML = ''; // Clear current history
+    historyArray.forEach(record => {
+      let row = historyTableBody.insertRow();
+      let cellRound = row.insertCell(0);
+      let cellResult = row.insertCell(1);
+      cellRound.innerHTML = record.round;
+      cellResult.innerHTML = record.result;
+    });
+  }
+
+  function updateDiceImage(diceImg, value) {
+    diceImg.src = `dice${value}.png`;
+  }
+
+  function rollDice() {
+    let diceValues = [];
+    for (let i = 1; i <= 3; i++) {
+      diceValues.push(Math.floor(Math.random() * 6) + 1);
+    }
+    return diceValues;
+  }
+
+  function displayResult(diceValues) {
+    const sum = diceValues.reduce((acc, val) => acc + val, 0);
+    const result = sum >= 11 ? 'Big' : 'Small';
+    const winOrLose = result === playerBet ? 'Win' : 'Lose';
+    const resultText = `Result: ${sum} points, ${result} - ${winOrLose}`;
+    const resultClass = winOrLose === 'Win' ? 'win' : 'lose';
+    document.getElementById('result').textContent = resultText;
+    document.getElementById('result').className = resultClass;
+    document.getElementById('result').style.visibility = 'visible'; // Make result visible after rolling
+    csvContent += `${realHistory.length + 1},${winOrLose}\n`; // Add result to CSV content
+    return winOrLose;
+  }
+
+  document.getElementById('view-history').addEventListener('click', function() {
+    const randomHistory = generateRandomHistory();
+    showHistory(randomHistory);
+    document.getElementById('history-container').style.display = 'block';
+  });
+
+  document.getElementById('play-again').addEventListener('click', function() {
+    realHistory = []; // Clear real history
+    csvContent = "data:text/csv;charset=utf-8,\uFEFFNumber,Results\n"; // Reset CSV content
+    showHistory(realHistory);
+    document.getElementById('history-container').style.display = 'block';
+  });
+
+  document.getElementById('bet-big').addEventListener('click', function() {
+    playerBet = 'Big';
+    this.classList.add('selected');
+    document.getElementById('bet-small').classList.remove('selected');
+  });
+
+  document.getElementById('bet-small').addEventListener('click', function() {
+    playerBet = 'Small';
+    this.classList.add('selected');
+    document.getElementById('bet-big').classList.remove('selected');
+  });
+
+  document.getElementById('roll').addEventListener('click', function() {
+    if (!playerBet) {
+      alert('Please choose Big or Small first!');
+      return;
+    }
+
+    let diceImages = document.querySelectorAll('.dice-img');
+    diceImages.forEach(dice => dice.classList.add('rolling'));
+
+    setTimeout(() => {
+      diceImages.forEach(dice => dice.classList.remove('rolling'));
+      const diceValues = rollDice();
+      diceValues.forEach((value, index) => {
+        updateDiceImage(diceImages[index], value);
+      });
+      const winOrLose = displayResult(diceValues);
+      realHistory.push({ round: realHistory.length + 1, result: winOrLose });
+      showHistory(realHistory);
+      document.getElementById('bet-big').classList.remove('selected');
+      document.getElementById('bet-small').classList.remove('selected');
+      playerBet = null; // Reset player's bet
+    }, 1500);
+  });
+
+  document.getElementById('download-result').addEventListener('click', function() {
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "dice_game_results.csv");
+    document.body.appendChild(link); // Required for FF
+
+    link.click(); // This will download the data file named "dice_game_results.csv".
+    document.body.removeChild(link); // Clean up
+  });
+</script>
+</body>
+</html>
